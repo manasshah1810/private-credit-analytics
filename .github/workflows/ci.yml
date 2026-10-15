@@ -11,4 +11,7 @@ jobs:
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: 17, cache: maven }
       - run: mvn -B verify
-      - run: java -jar target/private-credit-analytics-1.0.0.jar samples/loans.csv samples/financials.csv 6.0 2.0
+      - name: Run the CLI on the sample portfolio
+        run: >
+          java -jar target/private-credit-analytics-1.0.0.jar --loans samples/loans.csv --curve samples/curve.csv
+          --financials samples/financials.csv --max-leverage 6.0 --min-coverage 2.0 --scenarios samples/scenarios.csv

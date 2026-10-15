@@ -7,35 +7,55 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Builds a cash-flow schedule for a loan. All money is rounded to 2 decimals (HALF_EVEN) each period. */
+/**
+ * Builds a cash-flow schedule for a loan. All money is rounded to 2 decimals (HALF_EVEN) each period.
+ *
+ * <p>Floating-rate loans fix at the start of each period (index on that date, floored, plus spread). Level-payment
+ * floating loans re-size the payment at every reset over the remaining periods, so the loan still amortises to zero.
+ * PIK interest is added to the balance and repaid with the final payment.
+ */
 public final class Schedule {
     private Schedule() {}
 
     public static List<Payment> build(Loan loan) {
+        return build(loan, null);
+    }
+
+    public static List<Payment> build(Loan loan, RateCurve curve) {
         int n = loan.periods();
         int step = 12 / loan.paymentsPerYear();
+        BigDecimal ppy = BigDecimal.valueOf(loan.paymentsPerYear());
         BigDecimal balance = loan.principal();
-        BigDecimal periodicRate = loan.annualRate().divide(BigDecimal.valueOf(loan.paymentsPerYear()), MathContext.DECIMAL64);
-        BigDecimal level = loan.amortization() == Loan.Amortization.LEVEL_PAYMENT ? levelPayment(loan.principal(), periodicRate, n) : null;
         BigDecimal straight = loan.principal().divide(BigDecimal.valueOf(n), 2, RoundingMode.HALF_EVEN);
+        BigDecimal fixedLevel = null;
+        if (loan.amortization() == Loan.Amortization.LEVEL_PAYMENT && !loan.isFloating()) {
+            fixedLevel = levelPayment(loan.principal(), loan.rate().divide(ppy, MathContext.DECIMAL64), n);
+        }
 
         List<Payment> out = new ArrayList<>(n);
         LocalDate prev = loan.start();
         for (int k = 1; k <= n; k++) {
             LocalDate date = loan.start().plusMonths((long) step * k);
-            BigDecimal interest = money(balance.multiply(loan.annualRate()).multiply(loan.dayCount().yearFraction(prev, date)));
+            BigDecimal cashRate = loan.cashRate(curve, prev);
+            BigDecimal yf = loan.dayCount().yearFraction(prev, date);
+            BigDecimal interest = money(balance.multiply(cashRate).multiply(yf));
+            BigDecimal pik = money(balance.multiply(loan.pikRate()).multiply(yf));
             BigDecimal principal;
             if (k == n) {
-                principal = balance; // final period always clears the balance
+                principal = balance.add(pik); // final period clears the balance, capitalised PIK and rounding remainders
             } else {
                 principal = switch (loan.amortization()) {
                     case BULLET -> BigDecimal.ZERO;
-                    case STRAIGHT_LINE -> straight;
-                    case LEVEL_PAYMENT -> level.subtract(interest).max(BigDecimal.ZERO).min(balance);
+                    case STRAIGHT_LINE -> straight.min(balance);
+                    case LEVEL_PAYMENT -> {
+                        BigDecimal level = fixedLevel != null ? fixedLevel
+                                : levelPayment(balance, cashRate.divide(ppy, MathContext.DECIMAL64), n - k + 1);
+                        yield level.subtract(interest).max(BigDecimal.ZERO).min(balance);
+                    }
                 };
             }
-            balance = balance.subtract(principal);
-            out.add(new Payment(date, interest, principal, balance));
+            balance = balance.add(pik).subtract(principal);
+            out.add(new Payment(date, cashRate, interest, pik, principal, balance));
             prev = date;
         }
         return out;

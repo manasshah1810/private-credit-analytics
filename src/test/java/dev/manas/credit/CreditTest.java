@@ -64,7 +64,7 @@ class CreditTest {
         assertEquals(d("20444.44"), s.get(2).interest());
         assertEquals(d("81111.10"), Metrics.totalInterest(s));
         assertEquals(0, s.get(2).principal().signum());
-        assertEquals(d("1000000"), s.get(3).principal());
+        assertEquals(0, d("1000000").compareTo(s.get(3).principal()));
         assertEquals(0, s.get(3).balanceAfter().signum());
         assertEquals(dt("2027-01-01"), s.get(3).date());
     }
@@ -206,24 +206,41 @@ class CreditTest {
     @Test
     void cliPrintsReportAndBreaches(@TempDir Path dir) throws Exception {
         Path loans = dir.resolve("loans.csv");
-        Files.writeString(loans, "id,borrower,principal,annualRate,dayCount,start,maturity,paymentsPerYear,amortization\n"
-                + "L1,Acme,1000000,0.08,ACT_360,2026-01-01,2027-01-01,4,BULLET\n");
+        Files.writeString(loans, LOANS_HEADER
+                + "L1,Acme,Industrials,1000000,FIXED,0.08,0,0,ACT_360,2026-01-01,2027-01-01,4,BULLET,100\n");
         Path fin = dir.resolve("fin.csv");
         Files.writeString(fin, "borrower,totalDebt,ebitda,interestExpense\nAcme,500,100,20\n");
+        Path scen = dir.resolve("scen.csv");
+        Files.writeString(scen, "name,annualDefaultRate,recoveryRate\nbase,0.02,0.6\n");
         ByteArrayOutputStream buf = new ByteArrayOutputStream();
-        Cli.run(new String[] {loans.toString(), fin.toString(), "4.0", "3.0"}, new PrintStream(buf));
+        Cli.run(new String[] {"--loans", loans.toString(), "--financials", fin.toString(), "--max-leverage", "4.0",
+                "--min-coverage", "3.0", "--scenarios", scen.toString()}, new PrintStream(buf));
         String out = buf.toString();
         assertTrue(out.contains("81111.10"), out);
         assertTrue(out.contains("weighted average coupon: 8.000%"), out);
+        assertTrue(out.contains("Industrials 100.0%"), out);
         assertTrue(out.contains("BREACH Acme"), out);
         assertTrue(out.contains("1 covenant breach(es)"), out);
+        assertTrue(out.contains("base"), out);
     }
 
     @Test
+    void cliRejectsFloatingLoanWithoutCurve(@TempDir Path dir) throws Exception {
+        Path loans = dir.resolve("loans.csv");
+        Files.writeString(loans, LOANS_HEADER
+                + "L1,Acme,Industrials,1000000,FLOATING,0.05,0,0,ACT_360,2026-01-01,2027-01-01,4,BULLET,100\n");
+        var e = assertThrows(IllegalArgumentException.class, () -> Cli.run(new String[] {"--loans", loans.toString()},
+                new PrintStream(new ByteArrayOutputStream())));
+        assertTrue(e.getMessage().contains("needs a rate curve"), e.getMessage());
+    }
+
+    private static final String LOANS_HEADER =
+            "id,borrower,sector,principal,rateType,rate,floor,pikRate,dayCount,start,maturity,paymentsPerYear,amortization,price\n";
+
+    @Test
     void cliReportsLineNumbersOnBadInput() {
-        var e = assertThrows(IllegalArgumentException.class, () -> Cli.parseLoans(List.of(
-                "id,borrower,principal,annualRate,dayCount,start,maturity,paymentsPerYear,amortization",
-                "L1,Acme,abc,0.08,ACT_360,2026-01-01,2027-01-01,4,BULLET")));
+        var e = assertThrows(IllegalArgumentException.class, () -> Cli.parseLoans(List.of(LOANS_HEADER.trim(),
+                "L1,Acme,Industrials,abc,FIXED,0.08,0,0,ACT_360,2026-01-01,2027-01-01,4,BULLET,100")));
         assertTrue(e.getMessage().startsWith("loans line 2"), e.getMessage());
         var e2 = assertThrows(IllegalArgumentException.class, () -> Cli.parseFinancials(List.of("h", "Acme,1,2")));
         assertTrue(e2.getMessage().contains("expected 4 columns"));

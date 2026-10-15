@@ -1,4 +1,5 @@
-id,borrower,principal,annualRate,dayCount,start,maturity,paymentsPerYear,amortization
-L1,Northwind Logistics,25000000,0.0925,ACT_360,2026-01-15,2031-01-15,4,BULLET
-L2,Helios Solar,40000000,0.0850,THIRTY_360,2026-03-01,2033-03-01,4,LEVEL_PAYMENT
-L3,Brightline Retail,15000000,0.1050,ACT_360,2026-06-30,2029-06-30,12,STRAIGHT_LINE
+id,borrower,sector,principal,rateType,rate,floor,pikRate,dayCount,start,maturity,paymentsPerYear,amortization,price
+L1,Northwind Logistics,Industrials,25000000,FIXED,0.0925,0,0,ACT_360,2026-01-15,2031-01-15,4,BULLET,98.50
+L2,Helios Solar,Energy,40000000,FIXED,0.0850,0,0,THIRTY_360,2026-03-01,2033-03-01,4,LEVEL_PAYMENT,100.00
+L3,Brightline Retail,Consumer,15000000,FLOATING,0.0650,0.0100,0.0200,ACT_360,2026-06-30,2029-06-30,12,STRAIGHT_LINE,97.00
+L4,Cobalt Software,Technology,30000000,FLOATING,0.0575,0.0150,0,ACT_360,2026-02-01,2031-02-01,4,BULLET,99.00
