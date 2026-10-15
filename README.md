@@ -40,7 +40,7 @@ BREACH Brightline Retail INTEREST_COVERAGE actual=0.96 threshold=2.0 (coverage b
 
 ## Tests
 
-21 JUnit 5 tests with hand-computed expectations, for example: a EUR 1,000,000 8% quarterly ACT/360 bullet loan pays
+21 JUnit 5 tests with hand-computed expectations, for example: a 1,000,000 8% quarterly ACT/360 bullet loan pays
 20,000.00 / 20,222.22 / 20,444.44 / 20,444.44 of interest (total 81,111.10); a 100,000 12% monthly level-payment loan has a
 payment of 8,884.88; 30/360 month-end cases; inclusive covenant boundaries; CLI output and error line numbers.
 
