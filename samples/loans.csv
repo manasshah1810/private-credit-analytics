@@ -1,0 +1,4 @@
+id,borrower,principal,annualRate,dayCount,start,maturity,paymentsPerYear,amortization
+L1,Northwind Logistics,25000000,0.0925,ACT_360,2026-01-15,2031-01-15,4,BULLET
+L2,Helios Solar,40000000,0.0850,THIRTY_360,2026-03-01,2033-03-01,4,LEVEL_PAYMENT
+L3,Brightline Retail,15000000,0.1050,ACT_360,2026-06-30,2029-06-30,12,STRAIGHT_LINE
